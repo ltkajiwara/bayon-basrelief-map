@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bayon Bas-Relief Map</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
+    <style>
+        body { margin: 0; background: #111; color: white; font-family: sans-serif; overflow: hidden; }
+        
+        /* Two full-screen viewport containers */
+        #map-container, #viewer-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #viewer, #openseadragon-viewer {
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+        
+        /* Floating Back to Map Button */
+        #back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            padding: 12px 20px;
+            background: #2c3e50;
+            color: white;
+            border: 2px solid #34495e;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        #back-button:hover {
+            background: #34495e;
+            transform: translateY(-1px);
+        }
+
+        #back-button:active {
+            transform: translateY(1px);
+        }
+
+        /* Interactive marker pins on the Site Plan */
+        .annotation-marker {
+            background: rgba(31, 117, 53, 0.8); /* dark green */
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 28px;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        
+        .annotation-marker .popup-info {
+            display: none;
+            position: absolute;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid #444;
+            color: white;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 260px;
+            white-space: normal;
+            z-index: 100;
+        }
+
+        .annotation-marker.open .popup-info {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- CONTAINER 1: The Interactive Site Plan -->
+    <div id="map-container">
+        <div id="viewer"></div>
+    </div>
+
+    <!-- CONTAINER 2: The Deep Zoom Scan Viewer (Hidden by default) -->
+    <div id="viewer-container" style="display: none;">
+        <button id="back-button" onclick="closeRelief()">&larr; Back to Site Plan</button>
+        <div id="openseadragon-viewer"></div>
+    </div>
+
+    <script>
+        // 1. Initialize the main Site Plan viewer
+        const viewer = OpenSeadragon({
+            id: "viewer",
+            prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
+            clickToZoom: false, // Prevents canvas jumping when clicking markers
+            tileSources: {
+                type: 'image',
+                url: 'bayonplan.jpg' // Your base site plan image
+            }
+        });
+
+        // Global variable to keep track of our active scan viewer instance
+        let scanViewer = null;
+
+        viewer.addHandler('open', function() {
+            // Your 7 gallery locations on the site plan
+            const galleryTags = [
+                {
+                    id: "EN",
+                    x: 0.7678, 
+                    y: 0.1288,
+                    info: "<strong>East Gallery (North Section)</strong><br>Bas-relief depicting narrative carvings.<br><br><a href='javascript:void(0);' onclick='loadRelief(\"NorthGallery_EastPart2_tiled.dzi\", \"North Gallery - East Section (Eastern Side)\")' style='color: #3498db; text-decoration: underline; font-weight: bold;'>Open High-Res Scan &rarr;</a>"
+                },
+                {
+                    id: "ES",
+                    x: 0.7678, 
+                    y: 0.1288,
+                    info: "<strong>East Gallery (South Section)</strong><br>Bas-relief depicting narrative carvings.<br><br><a href='javascript:void(0);' onclick='loadRelief(\"NorthGallery_EastPart2_tiled.dzi\", \"North Gallery - East Section (Eastern Side)\")' style='color: #3498db; text-decoration: underline; font-weight: bold;'>Open High-Res Scan &rarr;</a>"
+                },
+                {
+                    id: "NE",
+                    x: 0.6206, 
+                    y: 0.1288,
+                    info: "<strong>North Gallery (East Section)</strong><br>Bas-relief depicting narrative carvings.<br><br><a href='javascript:void(0);' onclick='loadRelief(\"NorthGallery_EastPart1_tiled.dzi\", \"North Gallery - East Section (Western Side)\")' style='color: #3498db; text-decoration: underline; font-weight: bold;'>Open High-Res Scan &rarr;</a>"
+                },
+                {
+                    id: "NW",
+                    x: 0.3482, 
+                    y: 0.1288,
+                    info: "<strong>North Gallery (West Section)</strong><br>Bas-relief depicting narrative carvings.<br><br><a href='javascript:void(0);' onclick='loadRelief(\"NorthGallery_WestPart_tiled.dzi\", \"North Gallery - West Section\")' style='color: #3498db; text-decoration: underline; font-weight: bold;'>Open High-Res Scan &rarr;</a>"
+                },
+                {
+                    id: "SE",
+                    x: 0.2236, 
+                    y: 0.2158,
+                    info: "<strong>South Gallery (East Section)</strong><br>Bas-relief depicting narrative carvings.<br><br><a href='javascript:void(0);' onclick='loadRelief(\"WestGallery_NorthPart_tiled.dzi\", \"West Gallery - North Section\")' style='color: #3498db; text-decoration: underline; font-weight: bold;'>Open High-Res Scan &rarr;</a>"
+                },
+                {
+                    id: "SW",
+                    x: 0.2236, 
+                    y: 0.4909,
+                    info: "<strong>South Gallery (West Section)</strong><br>Bas-relief depicting narrative carvings.<br><br><a href='javascript:void(0);' onclick='loadRelief(\"WestGallery_SouthPart_tiled.dzi\", \"West Gallery - South Section\")' style='color: #3498db; text-decoration: underline; font-weight: bold;'>Open High-Res Scan &rarr;</a>"
+                },
+                {
+                    id: "WN",
+                    x: 0.8075, 
+                    y: 0.4902,
+                    info: "<strong>West Gallery (North Section)</strong><br>Bas-relief depicting narrative carvings.<br><br><a href='javascript:void(0);' onclick='loadRelief(\"EastGallery_SouthPart_tiled.dzi\", \"East Gallery - South Section\")' style='color: #3498db; text-decoration: underline; font-weight: bold;'>Open High-Res Scan &rarr;</a>"
+                },
+                {
+                    id: "WS",
+                    x: 0.7678, 
+                    y: 0.1288,
+                    info: "<strong>West Gallery (South Section 1)</strong><br>Bas-relief depicting narrative carvings.<br><br><a href='javascript:void(0);' onclick='loadRelief(\"NorthGallery_EastPart2_tiled.dzi\", \"North Gallery - East Section (Eastern Side)\")' style='color: #3498db; text-decoration: underline; font-weight: bold;'>Open High-Res Scan &rarr;</a>"
+                },
+                {
+                    id: "A",
+                    x: 0.7678, 
+                    y: 0.1288,
+                    info: "<strong>North East Corner Gallery</strong><br>Bas-relief depicting narrative carvings.<br><br><a href='javascript:void(0);' onclick='loadRelief(\"NorthGallery_EastPart2_tiled.dzi\", \"North Gallery - East Section (Eastern Side)\")' style='color: #3498db; text-decoration: underline; font-weight: bold;'>Open High-Res Scan &rarr;</a>"
+                },
+                {
+                    id: "B",
+                    x: 0.4008,
+                    y: 0.5700,
+                    info: "<strong>South East Corner Gallery</strong><br>Octagonal brick temple carvings.<br><br><a href='javascript:void(0);' onclick='loadRelief(\"SouthGallery_WestPart_tiled.dzi\", \"South Gallery - West Section\")' style='color: #3498db; text-decoration: underline; font-weight: bold;'>Open High-Res Scan &rarr;</a>"
+                }
+            ];
+
+            galleryTags.forEach(function(tag) {
+                const marker = document.createElement('div');
+                marker.className = 'annotation-marker';
+                marker.innerText = tag.id;
+
+                const popup = document.createElement('div');
+                popup.className = 'popup-info';
+                popup.innerHTML = tag.info;
+                marker.appendChild(popup);
+
+                // Stop OSD from hijacking clicks inside the popup
+                popup.addEventListener('click', function(e) { e.stopPropagation(); });
+                popup.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+                popup.addEventListener('mouseup', function(e) { e.stopPropagation(); });
+                popup.addEventListener('pointerdown', function(e) { e.stopPropagation(); });
+                popup.addEventListener('pointerup', function(e) { e.stopPropagation(); });
+
+                viewer.addOverlay({
+                    element: marker,
+                    location: new OpenSeadragon.Point(tag.x, tag.y)
+                });
+
+                new OpenSeadragon.MouseTracker({
+                    element: marker,
+                    clickHandler: function() {
+                        // Close any other open popups first
+                        document.querySelectorAll('.annotation-marker').forEach(m => {
+                            if (m !== marker) m.classList.remove('open');
+                        });
+                        marker.classList.toggle('open');
+                    }
+                });
+            });
+        });
+
+        // Dynamic Loading Function
+        // Hides the map, opens the clean viewer, and builds your high-res bas-relief
+        function loadRelief(dziPath, title) {
+            // Close all popups on the main map so they're fresh when you return
+            document.querySelectorAll('.annotation-marker').forEach(m => m.classList.remove('open'));
+
+            // 1. Swap visibility of the HTML layouts
+            document.getElementById("map-container").style.display = "none";
+            document.getElementById("viewer-container").style.display = "block";
+            
+            // 2. Initialize or open the scan in our secondary viewer
+            if (scanViewer) {
+                scanViewer.open(dziPath);
+            } else {
+                scanViewer = OpenSeadragon({
+                    id: "openseadragon-viewer",
+                    prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
+                    tileSources: dziPath,
+                    showNavigator: true,
+                    navigatorPosition: "BOTTOM_RIGHT"
+                });
+            }
+            
+            console.log("Loading " + title);
+        }
+
+        // Close scan viewer and return back to your main site plan map
+        function closeRelief() {
+            // 1. Swap layout visibility back
+            document.getElementById("viewer-container").style.display = "none";
+            document.getElementById("map-container").style.display = "block";
+            
+            // 2. Destory/destroy resources on the scan viewer to keep performance lightning fast
+            if (scanViewer) {
+                scanViewer.destroy();
+                scanViewer = null;
+            }
+        }
+
+        // Click helper for plotting coordinates
+        viewer.addHandler('canvas-click', function(event) {
+            if (event.quick) {
+                const viewportPoint = viewer.viewport.pointFromPixel(event.position);
+                console.log(`Site Plan Coords -> X: ${viewportPoint.x.toFixed(4)}, Y: ${viewportPoint.y.toFixed(4)}`);
+            }
+        });
+    </script>
+</body>
+</html>
