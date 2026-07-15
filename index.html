@@ -117,6 +117,7 @@
 
         // Global variable to keep track of our active scan viewer instance
         let scanViewer = null;
+        let activeDziPath = ""; // <-- Track the active DZI string path globally
 
         // --- 2. ANNOTATION DATABASE (FOR HIGH-RES SCANS) ---
         const scanAnnotations = [
@@ -271,8 +272,7 @@
                 // IMPORTANT: Wipe out previous scan elements so we don't pile up ghosts
                 scanViewer.clearOverlays();
 
-                const currentDzi = scanViewer.tileSources;
-                const activeAnnotations = scanAnnotations.filter(ann => ann.parentScan === currentDzi);
+                const activeAnnotations = scanAnnotations.filter(ann => ann.parentScan === activeDziPath);
                 
                 activeAnnotations.forEach(function(ann) {
                     const pin = document.createElement('div');
@@ -334,6 +334,8 @@
             // Show scan container, hide main map
             document.getElementById("map-container").style.display = "none";
             document.getElementById("viewer-container").style.display = "block";
+
+            activeDziPath = dziPath;
             
             // Lazy-initialize scanViewer on first use
             if (!scanViewer) {
@@ -353,6 +355,8 @@
             if (scanViewer) {
                 scanViewer.close();
             }
+
+            activeDziPath = "";
         }
 
         // Click helper for plotting coordinates
